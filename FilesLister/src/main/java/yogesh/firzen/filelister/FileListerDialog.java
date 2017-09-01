@@ -41,7 +41,11 @@ public class FileListerDialog {
         /**
          * List Directory and Audio files
          */
-        AUDIO_ONLY
+        AUDIO_ONLY,
+        /**
+         * List All Files (can't select directory)
+         */
+        FILE_ONLY
     }
 
     private AlertDialog alertDialog;
@@ -84,16 +88,19 @@ public class FileListerDialog {
     }
 
     private void init(Context context) {
-        filesListerView = new FilesListerView(context);
-        alertDialog.setView(filesListerView);
-        alertDialog.setButton(BUTTON_POSITIVE, "Select", new DialogInterface.OnClickListener() {
+        filesListerView = new FilesListerView(context, new FileListerAdapter.OnFileItemClickedListener() {
             @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                dialogInterface.dismiss();
-                if (onFileSelectedListener != null)
-                    onFileSelectedListener.onFileSelected(filesListerView.getSelected(), filesListerView.getSelected().getAbsolutePath());
+            public void onFileItemClicked(File file) {
+                selectFile();
             }
         });
+        alertDialog.setView(filesListerView);
+//        alertDialog.setButton(BUTTON_POSITIVE, "Select", new DialogInterface.OnClickListener() {
+//            @Override
+//            public void onClick(DialogInterface dialogInterface, int i) {
+//                selectFile();
+//            }
+//        });
         alertDialog.setButton(BUTTON_NEUTRAL, "Default Dir", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
@@ -106,6 +113,21 @@ public class FileListerDialog {
                 dialogInterface.dismiss();
             }
         });
+    }
+
+    private void selectFile() {
+        File selectedFile = filesListerView.getSelected();
+        if ((filesListerView.getFileFilter() == FILE_FILTER.DIRECTORY_ONLY && !selectedFile.isDirectory())
+                || (filesListerView.getFileFilter() == FILE_FILTER.FILE_ONLY && !selectedFile.isFile())) {
+            return;
+        }
+        alertDialog.dismiss();
+        if (onFileSelectedListener != null) {
+            onFileSelectedListener.onFileSelected(
+                    selectedFile,
+                    selectedFile.getAbsolutePath()
+            );
+        }
     }
 
     /**

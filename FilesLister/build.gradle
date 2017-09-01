@@ -27,7 +27,6 @@ dependencies {
     compile 'com.android.support:design:26.0.0'
     compile 'com.android.support:recyclerview-v7:26.0.0'
     compile 'com.android.support:support-annotations:26.0.0'
-    compile 'yogesh.firzen:MukkiyaSevaigal:1.0.6'
 }
 
 

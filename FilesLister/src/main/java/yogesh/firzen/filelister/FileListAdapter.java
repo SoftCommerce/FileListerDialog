@@ -1,7 +1,6 @@
 package yogesh.firzen.filelister;
 
 import android.content.Context;
-import android.content.DialogInterface;
 import android.os.Environment;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.AppCompatEditText;
@@ -11,6 +10,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -19,13 +19,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
-
-import yogesh.firzen.mukkiasevaigal.M;
-import yogesh.firzen.mukkiasevaigal.S;
-
-/**
- * Created by root on 9/7/17.
- */
 
 class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListHolder> {
 
@@ -36,6 +29,7 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
     private FileListerDialog.FILE_FILTER fileFilter = FileListerDialog.FILE_FILTER.ALL_FILES;
     private Context context;
     private FilesListerView listerView;
+    private OnFileItemClickedListener fileItemClickedListener;
     private boolean unreadableDir;
 
 
@@ -46,10 +40,11 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
         listerView = view;
     }
 
-    FileListerAdapter(FilesListerView view) {
+    FileListerAdapter(FilesListerView view, OnFileItemClickedListener fileItemClickedListener) {
         //parent = defaultDir;
         this.context = view.getContext();
         listerView = view;
+        this.fileItemClickedListener = fileItemClickedListener;
     }
 
     void start() {
@@ -123,13 +118,8 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
                 public boolean accept(File file) {
                     switch (getFileFilter()) {
                         case ALL_FILES:
+                        case FILE_ONLY:
                             return true;
-                        case AUDIO_ONLY:
-                            return S.isAudio(file) || file.isDirectory();
-                        case IMAGE_ONLY:
-                            return S.isImage(file) || file.isDirectory();
-                        case VIDEO_ONLY:
-                            return S.isVideo(file) || file.isDirectory();
                         case DIRECTORY_ONLY:
                             return file.isDirectory();
                     }
@@ -140,7 +130,6 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
                 fs = new LinkedList<>(Arrays.asList(files));
             }
         }
-        M.L("From FileListAdapter", fs);
         data = new LinkedList<>(fs);
         Collections.sort(data, new Comparator<File>() {
             @Override
@@ -167,7 +156,7 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
     private void dirUp() {
         if (!unreadableDir) {
             data.add(0, selectedFile.getParentFile());
-            data.add(1, null);
+//            data.add(1, null);
         }
 
     }
@@ -198,16 +187,7 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
         if (position == 0 && f != null && !unreadableDir) {
             holder.icon.setImageResource(R.drawable.ic_subdirectory_up_black_48dp);
         } else if (f != null) {
-            if (f.isDirectory())
-                holder.icon.setImageResource(R.drawable.ic_folder_black_48dp);
-            else if (S.isImage(f))
-                holder.icon.setImageResource(R.drawable.ic_photo_black_48dp);
-            else if (S.isVideo(f))
-                holder.icon.setImageResource(R.drawable.ic_videocam_black_48dp);
-            else if (S.isAudio(f))
-                holder.icon.setImageResource(R.drawable.ic_audiotrack_black_48dp);
-            else
-                holder.icon.setImageResource(R.drawable.ic_insert_drive_file_black_48dp);
+            holder.icon.setImageResource(R.drawable.ic_insert_drive_file_black_48dp);
         }
     }
 
@@ -238,18 +218,13 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
 
         @Override
         public void onClick(View v) {
-            if (data.get(getPosition()) == null) {
+            if (data.get(getAdapterPosition()) == null) {
                 View view = View.inflate(getContext(), R.layout.dialog_create_folder, null);
                 final AppCompatEditText editText = view.findViewById(R.id.edittext);
                 AlertDialog.Builder builder = new AlertDialog.Builder(getContext())
                         .setView(view)
                         .setTitle("Enter the folder name")
-                        .setPositiveButton("Create", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-
-                            }
-                        });
+                        .setPositiveButton("Create", null);
                 final AlertDialog dialog = builder.create();
                 dialog.show();
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
@@ -257,57 +232,74 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
                     public void onClick(View v) {
                         String name = editText.getText().toString();
                         if (TextUtils.isEmpty(name)) {
-                            M.T(getContext(), "Please enter a valid folder name");
+                            Toast.makeText(
+                                    getContext(),
+                                    "Please enter a valid folder name",
+                                    Toast.LENGTH_SHORT
+                            ).show();
                         } else {
                             File file = new File(selectedFile, name);
                             if (file.exists()) {
-                                M.T(getContext(), "This folder already exists.\n Please provide another name for the folder");
+                                Toast.makeText(
+                                        getContext(),
+                                        "This folder already exists.\n Please provide another name for the folder",
+                                        Toast.LENGTH_SHORT
+                                ).show();
                             } else {
                                 dialog.dismiss();
-                                file.mkdirs();
-                                fileLister(file);
+                                if (file.mkdirs()) {
+                                    fileLister(file);
+                                }
                             }
                         }
                     }
                 });
             } else {
-                File f = data.get(getPosition());
+                File f = data.get(getAdapterPosition());
                 selectedFile = f;
-                M.L("From FileLister", f.getAbsolutePath());
+
                 if (f.isDirectory()) {
                     fileLister(f);
                 } else {
+                    if (fileItemClickedListener != null) {
+                        fileItemClickedListener.onFileItemClicked(f);
+                    }
                 }
             }
         }
     }
 
     private static String[] getPhysicalPaths() {
-        return new String[]{
-                "/storage/sdcard0",
-                "/storage/sdcard1",                 //Motorola Xoom
-                "/storage/extsdcard",               //Samsung SGS3
-                "/storage/sdcard0/external_sdcard", //User request
-                "/mnt/extsdcard",
-                "/mnt/sdcard/external_sd",          //Samsung galaxy family
-                "/mnt/external_sd",
-                "/mnt/media_rw/sdcard1",            //4.4.2 on CyanogenMod S3
-                "/removable/microsd",               //Asus transformer prime
+        return new String[] {
+                Environment.getExternalStorageDirectory().getPath(),
                 "/mnt/emmc",
-                "/storage/external_SD",             //LG
-                "/storage/ext_sd",                  //HTC One Max
-                "/storage/removable/sdcard1",       //Sony Xperia Z1
-                "/data/sdext",
-                "/data/sdext2",
-                "/data/sdext3",
-                "/data/sdext4",
-                "/sdcard1",                         //Sony Xperia Z
-                "/sdcard2",                         //HTC One M8s
-                "/storage/microsd"                  //ASUS ZenFone 2
+//                "/storage/sdcard0",
+//                "/storage/sdcard1",                 //Motorola Xoom
+//                "/storage/extsdcard",               //Samsung SGS3
+//                "/storage/sdcard0/external_sdcard", //User request
+//                "/mnt/extsdcard",
+//                "/mnt/sdcard/external_sd",          //Samsung galaxy family
+//                "/mnt/external_sd",
+//                "/mnt/media_rw/sdcard1",            //4.4.2 on CyanogenMod S3
+//                "/removable/microsd",               //Asus transformer prime
+//                "/storage/external_SD",             //LG
+//                "/storage/ext_sd",                  //HTC One Max
+//                "/storage/removable/sdcard1",       //Sony Xperia Z1
+//                "/data/sdext",
+//                "/data/sdext2",
+//                "/data/sdext3",
+//                "/data/sdext4",
+//                "/sdcard1",                         //Sony Xperia Z
+//                "/sdcard2",                         //HTC One M8s
+//                "/storage/microsd"                  //ASUS ZenFone 2
         };
     }
 
     private Context getContext() {
         return context;
+    }
+
+    interface OnFileItemClickedListener {
+        void onFileItemClicked(File file);
     }
 }
