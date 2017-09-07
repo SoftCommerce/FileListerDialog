@@ -1,7 +1,12 @@
 package yogesh.firzen.filelister;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ColorFilter;
+import android.media.ThumbnailUtils;
 import android.os.Environment;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.AppCompatEditText;
 import android.support.v7.widget.RecyclerView;
@@ -14,6 +19,7 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -21,7 +27,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListHolder> {
-
+    private final static int THUMB_SIZE = 128;
     private List<File> data = new LinkedList<>();
     //private File parent = Environment.getExternalStorageDirectory();
     private File defaultDir = Environment.getExternalStorageDirectory();
@@ -168,6 +174,7 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
 
     @Override
     public void onBindViewHolder(FileListHolder holder, int position) {
+        holder.icon.setColorFilter(ContextCompat.getColor(context, R.color.tintColor));
         File f = data.get(position);
         if (f != null) {
             holder.name.setText(f.getName());
@@ -187,7 +194,17 @@ class FileListerAdapter extends RecyclerView.Adapter<FileListerAdapter.FileListH
         if (position == 0 && f != null && !unreadableDir) {
             holder.icon.setImageResource(R.drawable.ic_subdirectory_up_black_48dp);
         } else if (f != null) {
-            holder.icon.setImageResource(R.drawable.ic_insert_drive_file_black_48dp);
+            String mimeType = URLConnection.guessContentTypeFromName(f.getAbsolutePath());
+            if (mimeType != null && mimeType.startsWith("image/")) {
+                Bitmap thumbImage = ThumbnailUtils.extractThumbnail(
+                        BitmapFactory.decodeFile(f.getAbsolutePath()),
+                        THUMB_SIZE,
+                        THUMB_SIZE);
+                holder.icon.setColorFilter(null);
+                holder.icon.setImageBitmap(thumbImage);
+            } else {
+                holder.icon.setImageResource(R.drawable.ic_insert_drive_file_black_48dp);
+            }
         }
     }
 
